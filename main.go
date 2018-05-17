@@ -6,6 +6,9 @@ import (
 	"strconv"
 	"math"
 	"time"
+	"bufio"
+	"os"
+	"strings"
 )
 
 /*
@@ -24,8 +27,8 @@ const (
 )
 
 const (
-	RED   = "r"
-	BLACK = "b"
+	HUMAN    = "h"
+	COMPUTER = "c"
 )
 
 func main() {
@@ -33,12 +36,17 @@ func main() {
 	runGame()
 }
 
+var (
+	reader = bufio.NewReader(os.Stdin)
+
+)
+
 func runGame() {
 	// board starts out empty
 	var (
 		board     [height][width]string
 		finished  bool
-		curPlayer = RED
+		curPlayer = HUMAN
 		round = 1
 	)
 	rand.Seed(int64(time.Now().Second()))
@@ -78,10 +86,10 @@ func runGame() {
 
 func flipGameOrder(curPlayer string) string {
 	// flip game order
-	if curPlayer == RED {
-		return BLACK
+	if curPlayer == HUMAN {
+		return COMPUTER
 	} else {
-		return RED
+		return HUMAN
 	}
 }
 
@@ -121,18 +129,22 @@ func checkForGameEnd(board [height][width]string, curPlayer string, inHeight int
 
 // go down and to the left 3 and see if you have same player
 func checkLeftDiagonal(board *[height][width]string, curPlayer string, inHeight int, inCol int) bool {
+	fmt.Printf("Checking left diagonal around {%v, %v}\n", inHeight, inCol)
 	numTimesSamePlayer := 0
-	for i:=0; i<=3; i++ {
-		newHeight := inHeight+1
+	newHeight := inHeight
+	newCol := inCol
+	for i:=1; i<=3; i++ {
+		newHeight = newHeight+1
 		if newHeight >= height {
 			return false
 		}
 
-		newCol := inCol -1
+		newCol = newCol -1
 		if newCol <1 { // want to cap at 1 since we are skipping 0th column
 			return false
 		}
 
+		fmt.Printf("in loop: checking left diagonal around {%v, %v}\n", newHeight, newCol)
 		if board[newHeight][newCol] == curPlayer {
 			numTimesSamePlayer++
 		} else {
@@ -144,14 +156,17 @@ func checkLeftDiagonal(board *[height][width]string, curPlayer string, inHeight 
 
 // go down and to the right 3 and see if you have same player
 func checkRightDiagonal(board *[height][width]string, curPlayer string, inHeight int, inCol int) bool {
+	fmt.Printf("Checking right diagonal around {%v, %v}\n", inHeight, inCol)
 	numTimesSamePlayer := 0
+	newHeight := inHeight
+	newCol := inCol
 	for i:=0; i<=3; i++ {
-		newHeight := inHeight+1
+		newHeight = newHeight+1
 		if newHeight >= height {
 			return false
 		}
 
-		newCol := inCol+1
+		newCol = newCol+1
 		if newCol >=width {
 			return false
 		}
@@ -174,17 +189,20 @@ func checkHorizontal(board *[height][width]string, curPlayer string, height int,
 	fmt.Printf("Checking horizontal from position {%d,%d} for %v\n", height, width, curPlayer)
 	sameInARow := 0
 	row := board[height]
-	fmt.Printf("horizontal check analyzes row %v around [%v] from {%v to %v}\n",
-		row, width, int(math.Max(0, float64(width-3))), int(math.Min(7, float64(width+3))))
+	fmt.Printf("horizontal check analyzes row %v in row [%v] from {%v to %v}\n",
+		row, height, int(math.Max(0, float64(width-3))), int(math.Min(7, float64(width+3))))
 	for i:=int(math.Max(0, float64(width-3))); i<= int(math.Min(7, float64(width+3))); i++ {
 		//fmt.Printf("checking for i %v\n", int(i))
-		if row[int(i)] == curPlayer {
+		if row[i] == curPlayer {
 			sameInARow++
 		} else {
 			sameInARow = 0
 		}
+		if sameInARow >=4 {
+			return true;
+		}
 	}
-	return sameInARow >= 3
+	return sameInARow >= 4
 }
 
 // checks to see if this new coin has 3 of same coin underneath
@@ -227,7 +245,29 @@ func fillBoardWithMove(board *[height][width]string, curPlayer string, column st
 
 // returns the column being chosen
 func getMove(player string) string {
-	column := strconv.Itoa(rand.Intn(width)) // it's exclusive, [0,width)
+	var column string
+	if player == HUMAN {
+		for
+		{
+			fmt.Print("Enter column: ")
+			column, _ = reader.ReadString('\n')
+			column = strings.Trim(column, "\n")
+			//fmt.Printf("read [%v]\n", column)
+			colInt, err := strconv.Atoi(column)
+			if err != nil {
+				fmt.Printf("You entered an invalid colInt, please try again: %v\n", err)
+				continue
+			}
+			if colInt < 1 || colInt >= width {
+				fmt.Printf("%d is not a valid colInt, please pick one [1,7]\n", colInt)
+				continue
+			}
+			// valid colInt, break
+			break
+		}
+	} else {
+		column = strconv.Itoa(rand.Intn(width-1)+1) // it's exclusive, [0,width)
+	}
 	fmt.Printf("Player [%v] chooses column [%s]\n", player, column)
 	return column
 }
@@ -239,9 +279,10 @@ ie a 3x2 array is 3 down, 2 wide and is [3][2]int
 
 func printBoard(board *[height][width]string, round int) {
 	fmt.Printf("Current board for round %d\n", round)
-	fmt.Println("1 2 3 4 5 6 7")
-	fmt.Println("-------------")
+	fmt.Println("    1 2 3 4 5 6 7")
+	fmt.Println("    -------------")
 	for i, _ := range board {
+		fmt.Printf("%d | ", i)
 		for j:=1; j<len(board[i]); j++ {
 			if len(board[i][j]) > 0 {
 				fmt.Printf("%s ", board[i][j])
